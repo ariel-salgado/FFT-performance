@@ -10,15 +10,17 @@ class checkArgs {
 private:
     const std::string optString = "n:h";
     
-    const std::string options = "-n SIZE -s SIMD [-h]";
+    const std::string options = "-n SIZE -s SIMD -p PRINT [-h]";
 
     const std::string description = "Descripción:\n"
                     "\t-n   Tamaño del problema (exponente en base 2)"
-										"\t-s		Habilitar procesamiento vectorial";
+										"\t-s		Habilitar procesamiento vectorial"
+										"\t-p		Mostrar por pantalla los resultados";
 	
 		typedef struct args_t {
 			int32_t SIZE;
-			int32_t SIMD;
+			bool SIMD;
+			bool PRINT;
 		} args_t;
 	
 		args_t parameters;
@@ -36,8 +38,9 @@ private:
 };
 
 checkArgs::checkArgs(int _argc , char **_argv) {
-	parameters.SIZE = 0;
-	parameters.SIMD = false;
+	parameters.SIZE  = 0;
+	parameters.SIMD  = false;
+	parameters.PRINT = false;
 	
 	argc = _argc;
 	argv = _argv;
@@ -50,13 +53,16 @@ checkArgs::~checkArgs() {
 checkArgs::args_t checkArgs::getArgs(){
 	int option;
 
-	while ((option = getopt(argc, argv, (optString + "s").c_str())) != -1){
+	while ((option = getopt(argc, argv, (optString + "s" + "p").c_str())) != -1){
 		switch (option) {
 			case 'n':
 					parameters.SIZE = atoi(optarg);
 					break;
 			case 's':
 					parameters.SIMD = true;
+					break;
+			case 'p':
+					parameters.PRINT = true;
 					break;
 			case 'h':
 			default:
@@ -66,7 +72,8 @@ checkArgs::args_t checkArgs::getArgs(){
 	}
 
 	if (parameters.SIZE <= 0 ||
-		 (parameters.SIMD != true && parameters.SIMD != false)) {
+		 (parameters.SIMD != true && parameters.SIMD != false) ||
+		 (parameters.PRINT != true && parameters.PRINT != false)) {
 	  printUsage();
 	  exit(EXIT_FAILURE);
 	}
