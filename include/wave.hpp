@@ -7,25 +7,27 @@ class Wave {
 private:
     int32_t size;
     bool simd;
+    bool print;
 
     std::vector<std::complex<double>> v;
 
 public:
-    Wave(int32_t _size, bool _simd);
+    Wave(int32_t _size, bool _simd, bool _print);
     ~Wave();
     
     int32_t getSize();
     void performFFT();
-    void printResults();
 
 private:
-    void FFT(std::vector<std::complex<double>>& _v);
-    void FFT_SIMD(std::vector<std::complex<double>>& _v);
+    void FFT(std::vector<std::complex<double>>& v);
+    void FFT_SIMD(std::vector<std::complex<double>>& v);
+    void printResults();
 };
 
-Wave::Wave(int32_t _size, bool _simd) {
-	size = (int32_t)pow(2, _size);
-  simd = _simd;
+Wave::Wave(int32_t _size, bool _simd, bool _print) {
+	size  = (int32_t)pow(2, _size);
+  simd  = _simd;
+  print = _print;
 
   std::generate_n(std::back_inserter(v), size, [n = 0]() mutable { return n++; });
 }
@@ -35,7 +37,7 @@ Wave::~Wave() {
 }
 
 int32_t Wave::getSize() {
-  return size;
+	return size;
 }
 
 void Wave::performFFT() {
@@ -44,10 +46,12 @@ void Wave::performFFT() {
   } else {
     FFT_SIMD(v);
   }
+
+  if (print) printResults();
 }
 
-void Wave::FFT(std::vector<std::complex<double>>& _v) {
-  int32_t n = _v.size();
+void Wave::FFT(std::vector<std::complex<double>>& v) {
+  int32_t n = v.size();
 
   if (n <= 1) return;
 
@@ -55,8 +59,8 @@ void Wave::FFT(std::vector<std::complex<double>>& _v) {
   std::vector<std::complex<double>> odd(n / 2);
 
   for (int32_t i = 0; i < n / 2; ++i) {
-    even[i] = _v[i * 2];
-     odd[i] = _v[i * 2 + 1];
+    even[i] = v[i << 1];
+    odd[i] = v[(i << 1) + 1];
   }
 
   FFT(even);
@@ -66,13 +70,13 @@ void Wave::FFT(std::vector<std::complex<double>>& _v) {
     std::complex<double> w = 
     std::exp(std::complex<double>(0, -2.0 * M_PI * k / n)) * odd[k];
 
-    _v[k] = even[k] + w;
-    _v[k + n / 2] = even[k] - w;
+    v[k] = even[k] + w;
+    v[k + n / 2] = even[k] - w;
   }
 }
 
-void Wave::FFT_SIMD(std::vector<std::complex<double>>& _v) {
-  int32_t n = _v.size();
+void Wave::FFT_SIMD(std::vector<std::complex<double>>& v) {
+  int32_t n = v.size();
 
   if (n <= 1) return;
 
@@ -80,22 +84,34 @@ void Wave::FFT_SIMD(std::vector<std::complex<double>>& _v) {
   std::vector<std::complex<double>> odd(n / 2);
 
   for (int32_t i = 0; i < n / 2; ++i) {
-    even[i] = _v[i * 2];
-    odd[i] = _v[i * 2 + 1];
+
+    // Load two consecutive complex numbers into SSE registers
+    __m128d vec1 = _mm_loadu_pd(reinterpret_cast<double*>(&v[i << 1]));
+    __m128d vec2 = _mm_loadu_pd(reinterpret_cast<double*>(&v[(i << 1) + 1]));
+
+    // Extract real and imaginary parts using SSE intrinsics
+    __m128d even_real = _mm_unpacklo_pd(vec1, vec1);
+    __m128d even_imag = _mm_unpackhi_pd(vec1, vec1);
+    __m128d odd_real  = _mm_unpacklo_pd(vec2, vec2);
+    __m128d odd_imag  = _mm_unpackhi_pd(vec2, vec2);
+
+    // Store the results into even and odd vectors
+    _mm_storeu_pd(reinterpret_cast<double*>(&even[i]), even_real);
+    _mm_storeu_pd(reinterpret_cast<double*>(&even[i]) + 1, even_imag);
+    _mm_storeu_pd(reinterpret_cast<double*>(&odd[i]), odd_real);
+    _mm_storeu_pd(reinterpret_cast<double*>(&odd[i]) + 1, odd_imag);
   }
 
-  FFT_SIMD(even);
-  FFT_SIMD(odd);
+  FFT(even);
+  FFT(odd);
 
-  // initialize twiddle factors
-  std::vector<std::complex<double>> twiddles(n / 2);
-  for (int32_t i = 0; i < n / 2; i++) {
-    twiddles[i] = std::exp(std::complex<double>(0, -2.0 * M_PI * i / n));
+  for (int32_t k = 0; k < n / 2; ++k) {
+    std::complex<double> w = 
+    std::exp(std::complex<double>(0, -2.0 * M_PI * k / n)) * odd[k];
+
+    v[k] = even[k] + w;
+    v[k + n / 2] = even[k] - w;
   }
-
-  /*
-    ...
-  */
 }
 
 void Wave::printResults() {
