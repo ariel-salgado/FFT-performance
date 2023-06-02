@@ -21,7 +21,6 @@ public:
 private:
     void FFT(std::vector<std::complex<double>>& v);
     void FFT_SIMD(std::vector<std::complex<double>>& v);
-    void bitReversal(std::vector<std::complex<double>>& v);
     void printResults();
 };
 
@@ -47,51 +46,70 @@ void Wave::performFFT() {
   if (print) printResults();
 }
 
-void Wave::bitReversal(std::vector<std::complex<double>>& v) {
-  const int32_t size = v.size();
-  const int32_t bits = static_cast<int>(std::log2(size));
-
-  for (int32_t i = 0; i < size; ++i) {
-    int32_t j = 0;
-    for (int32_t k = 0; k < bits; ++k) {
-      j |= ((i >> k) & 1) << (bits - 1 - k);
-    }
-
-    if (i < j) {
-      std::swap(v[i], v[j]);
-    }
-  }
-}
-
 void Wave::FFT(std::vector<std::complex<double>>& v) {
   const int32_t n = v.size();
 
   if (n <= 1) return;
 
-  bitReversal(v);
+  std::vector<std::complex<double>> even(n / 2);
+  std::vector<std::complex<double>> odd(n / 2);
 
-  for (int32_t s = 1; (1 << s) <= n; ++s) {
-    int32_t m = 1 << s;
-    double angle = 2 * M_PI / m;
-    std::complex<double> w_m = std::exp(std::complex<double>(0, -angle));
+  for (int32_t i = 0; i < n / 2; ++i) {
+    even[i] = v[i << 1];
+    odd[i] = v[(i << 1) + 1];
+  }
 
-    for (int32_t k = 0; k < n; k += m) {
-      std::complex<double> w = 1;
-      for (int32_t j = 0; j < m / 2; ++j) {
-        std::complex<double> t = w * v[k + j + m / 2];
-        std::complex<double> u = v[k + j];
-        v[k + j] = u + t;
-        v[k + j + m / 2] = u - t;
-        w *= w_m;
-      }
-    }
+  FFT(even);
+  FFT(odd);
+
+  for (int32_t k = 0; k < n / 2; ++k) {
+    std::complex<double> w = 
+    std::exp(std::complex<double>(0, -2.0 * M_PI * k / n)) * odd[k];
+
+    v[k] = even[k] + w;
+    v[k + n / 2] = even[k] - w;
   }
 }
 
 void Wave::FFT_SIMD(std::vector<std::complex<double>>& v) {
-  /*
-    ...
-  */
+  const int32_t n = v.size();
+
+  if (n <= 1) return;
+
+  std::vector<std::complex<double>> even(n / 2);
+  std::vector<std::complex<double>> odd(n / 2);
+
+  __m128d _tmp, _even, _w, _add, _sub;
+
+  for (int32_t i = 0; i < n / 2; ++i) {
+    std::complex<double>* evenPtr = even.data();
+    std::complex<double>* oddPtr = odd.data();
+
+    _tmp = _mm_set_pd(v[i << 1].imag(), v[i << 1].real());
+    _mm_store_pd(reinterpret_cast<double*>(&evenPtr[i]), _tmp);
+
+    _tmp = _mm_set_pd(v[(i << 1) + 1].imag(), v[(i << 1) + 1].real());
+    _mm_store_pd(reinterpret_cast<double*>(&oddPtr[i]), _tmp);
+  }
+
+  FFT(even);
+  FFT(odd);
+
+  for (int32_t k = 0; k < n / 2; ++k) {
+    std::complex<double> w = std::exp(std::complex<double>(0, -2.0 * M_PI * k / n)) * odd[k];
+
+    // Perform SIMD operations on even[k] and w
+    _even = _mm_load_pd(reinterpret_cast<double*>(&even[k]));
+    _w = _mm_set_pd(w.imag(), w.real());
+
+    // Perform SIMD addition and subtraction
+    _add = _mm_add_pd(_even, _w);
+    _sub = _mm_sub_pd(_even, _w);
+
+    // Store the results back to the vector v
+    _mm_store_pd(reinterpret_cast<double*>(&v[k]), _add);
+    _mm_store_pd(reinterpret_cast<double*>(&v[k + n / 2]), _sub);
+  }
 }
 
 void Wave::printResults() {
