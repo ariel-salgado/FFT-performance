@@ -1,7 +1,7 @@
 #ifndef GLOBAL_H
 #define GLOBAL_H
 
-#include <tmmintrin.h> // SSSE3 intrinsics
+#include <smmintrin.h>
 #include <algorithm>
 #include <iostream>
 #include <unistd.h>
