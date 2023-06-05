@@ -94,60 +94,34 @@ void Wave::FFT_SIMD(std::vector<std::complex<double>>& v) {
     std::vector<std::complex<double>> even(n / 2);
     std::vector<std::complex<double>> odd(n / 2);
 
-    /*
-    // Temporary variables for SIMD operations
-    __m256d _tmp;
-    alignas(32) double evenPtr[4], oddPtr[4];
-    */
-
     for (int32_t i = 0; i < n / 2; ++i) {
-
         even[i] = v[i << 1];
         odd[i] = v[(i << 1) + 1];
-
-        /* 
-        // Store the real and imaginary parts of complex numbers in SIMD registers
-        _tmp = _mm256_set_pd(
-            v[(i + 1) << 1].imag(), v[(i + 1) << 1].real(), 
-            v[i << 1].imag(), v[i << 1].real()
-        );
-
-        _mm256_store_pd(evenPtr, _tmp);
-
-        _tmp = _mm256_set_pd(
-            v[((i + 1) << 1) + 1].imag(), v[((i + 1) << 1) + 1].real(),
-            v[(i << 1) + 1].imag(), v[(i << 1) + 1].real()
-        );
-
-        _mm256_store_pd(oddPtr, _tmp);
-
-        std::copy(evenPtr, evenPtr + 4, reinterpret_cast<double*>(&even[i]));
-        std::copy(oddPtr, oddPtr + 4, reinterpret_cast<double*>(&odd[i])); 
-        */
     }
 
     // Perform FFT recursively on the even and odd indices
     FFT(even);
     FFT(odd);
 
-    __m128d _even, _w, _add, _sub;
+    __m256d _even, _w, _add, _sub;
+    double a = -2.0 * M_PI / n;
 
-    for (int32_t k = 0; k < n / 2; ++k) {
-        std::complex<double> w = std::exp(std::complex<double>(0, -2.0 * M_PI * k / n)) * odd[k];
+    for (int32_t k = 0; k < n / 2; k += 2) {
+        std::complex<double> w_1 = std::polar(1.0, a * k) * odd[k];
+        std::complex<double> w_2 = std::polar(1.0, a * (k + 1)) * odd[k + 1];
 
         // Perform SIMD operations on even[k] and w
-        _even = _mm_load_pd(reinterpret_cast<double*>(&even[k]));
-        _w = _mm_set_pd(w.imag(), w.real());
+        _even = _mm256_loadu_pd(reinterpret_cast<const double*>(&even[k]));
+        _w = _mm256_set_pd(w_2.imag(), w_2.real(), w_1.imag(), w_1.real());
 
         // Perform SIMD addition and subtraction
-        _add = _mm_add_pd(_even, _w);
-        _sub = _mm_sub_pd(_even, _w);
+        _add = _mm256_add_pd(_even, _w);
+        _sub = _mm256_sub_pd(_even, _w);
 
-        // Store the results back to the vector v
-        _mm_store_pd(reinterpret_cast<double*>(&v[k]), _add);
-        _mm_store_pd(reinterpret_cast<double*>(&v[k + n / 2]), _sub);
+        std::copy((double*)&_add, (double*)&_add + 4, reinterpret_cast<double*>(&v[k]));
+        std::copy((double*)&_sub, (double*)&_sub + 4, reinterpret_cast<double*>(&v[k + n / 2])); 
     }
-}
+}   
 
 /** 
  * Print the results of the FFT.
