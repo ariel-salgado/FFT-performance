@@ -1,5 +1,5 @@
 CC = g++
-CFLAGS = -Wall -Wextra -faligned-new -mavx
+CFLAGS = -Wall -Wextra -mavx
 
 INCLUDE_DIR = include
 SOURCE_DIR = src
