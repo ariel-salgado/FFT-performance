@@ -1,7 +1,7 @@
 #ifndef GLOBAL_H
 #define GLOBAL_H
 
-#include <smmintrin.h>
+#include <immintrin.h>
 #include <algorithm>
 #include <iostream>
 #include <unistd.h>
@@ -10,5 +10,6 @@
 #include <complex>
 #include <string>
 #include <vector>
+// #include <cstring>
 
 #endif
