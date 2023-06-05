@@ -94,24 +94,43 @@ void Wave::FFT_SIMD(std::vector<std::complex<double>>& v) {
     std::vector<std::complex<double>> even(n / 2);
     std::vector<std::complex<double>> odd(n / 2);
 
+    /*
     // Temporary variables for SIMD operations
-    __m128d _tmp, _even, _w, _add, _sub;
+    __m256d _tmp;
+    alignas(32) double evenPtr[4], oddPtr[4];
+    */
 
     for (int32_t i = 0; i < n / 2; ++i) {
-        std::complex<double>* evenPtr = even.data();
-        std::complex<double>* oddPtr = odd.data();
 
+        even[i] = v[i << 1];
+        odd[i] = v[(i << 1) + 1];
+
+        /* 
         // Store the real and imaginary parts of complex numbers in SIMD registers
-        _tmp = _mm_set_pd(v[i << 1].imag(), v[i << 1].real());
-        _mm_store_pd(reinterpret_cast<double*>(&evenPtr[i]), _tmp);
+        _tmp = _mm256_set_pd(
+            v[(i + 1) << 1].imag(), v[(i + 1) << 1].real(), 
+            v[i << 1].imag(), v[i << 1].real()
+        );
 
-        _tmp = _mm_set_pd(v[(i << 1) + 1].imag(), v[(i << 1) + 1].real());
-        _mm_store_pd(reinterpret_cast<double*>(&oddPtr[i]), _tmp);
+        _mm256_store_pd(evenPtr, _tmp);
+
+        _tmp = _mm256_set_pd(
+            v[((i + 1) << 1) + 1].imag(), v[((i + 1) << 1) + 1].real(),
+            v[(i << 1) + 1].imag(), v[(i << 1) + 1].real()
+        );
+
+        _mm256_store_pd(oddPtr, _tmp);
+
+        std::copy(evenPtr, evenPtr + 4, reinterpret_cast<double*>(&even[i]));
+        std::copy(oddPtr, oddPtr + 4, reinterpret_cast<double*>(&odd[i])); 
+        */
     }
 
     // Perform FFT recursively on the even and odd indices
     FFT(even);
     FFT(odd);
+
+    __m128d _even, _w, _add, _sub;
 
     for (int32_t k = 0; k < n / 2; ++k) {
         std::complex<double> w = std::exp(std::complex<double>(0, -2.0 * M_PI * k / n)) * odd[k];
