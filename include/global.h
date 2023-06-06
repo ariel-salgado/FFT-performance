@@ -5,7 +5,7 @@
 #include <algorithm>
 #include <iostream>
 #include <unistd.h>
-#include <tgmath.h> 
+#include <tgmath.h>
 #include <iomanip>
 #include <complex>
 #include <string>
