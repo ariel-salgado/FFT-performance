@@ -14,10 +14,11 @@ El objetivo final de este proyecto es realizar una comparación del rendimiento 
 Para utilizar y ejecutar las implementaciones de la FFT, siga estas instrucciones:
 
 - Compilar con `make`
-- Ejecutar el código con `./main -n SIZE [-p] [-s] [-h]`
+- Ejecutar el código con `./main -n SIZE [-s] SIMD [-p] PRINT [-t] TIMER [-h]`
 
 *Nota: Las flags entre corchetes son flags opcioniales.*
 
 - `-n:` Corresponde al exponente en base 2. Ejemplo: `SIZE = 3`, entonces `n = 8`, ya que `2^3 = 8`.
-- `-p:` Muestra por pantalla el cálculo de la FFT.
 - `-s:` Habilita el uso de operaciones vectoriales en el cálculo de la FFT. Por defecto es falso.
+- `-p:` Muestra por pantalla el cálculo de la FFT.
+- `-t:` Medir tiempo de ejecución de la FFT.
