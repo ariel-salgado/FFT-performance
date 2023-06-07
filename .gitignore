@@ -1,3 +1,5 @@
 .vscode
 src/objs
 main
+*.sh
+*.txt
