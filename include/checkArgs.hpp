@@ -11,18 +11,20 @@ class checkArgs
 private:
 	const std::string optString = "n:h";
 
-	const std::string options = "-n SIZE -s SIMD -p PRINT [-h]";
+	const std::string options = "-n SIZE [-s] SIMD [-p] PRINT [-t] TIMER [-h]";
 
 	const std::string description = "Descripción:\n"
 																	"\t-n   Tamaño del problema (exponente en base 2)"
 																	"\t-s		Habilitar procesamiento vectorial"
-																	"\t-p		Mostrar por pantalla los resultados";
+																	"\t-p		Mostrar por pantalla los resultados"
+																	"\t-t		Medir tiempo de ejecución de la FFT";
 
 	typedef struct args_t
 	{
 		int32_t SIZE;
 		bool SIMD;
 		bool PRINT;
+		bool CLOCK;
 	} args_t;
 
 	args_t parameters;
@@ -44,6 +46,7 @@ checkArgs::checkArgs(int _argc, char **_argv)
 	parameters.SIZE = 0;
 	parameters.SIMD = false;
 	parameters.PRINT = false;
+	parameters.CLOCK = false;
 
 	argc = _argc;
 	argv = _argv;
@@ -57,7 +60,7 @@ checkArgs::args_t checkArgs::getArgs()
 {
 	int option;
 
-	while ((option = getopt(argc, argv, (optString + "s" + "p").c_str())) != -1)
+	while ((option = getopt(argc, argv, (optString + "s" + "p" + "t").c_str())) != -1)
 	{
 		switch (option)
 		{
@@ -70,6 +73,9 @@ checkArgs::args_t checkArgs::getArgs()
 		case 'p':
 			parameters.PRINT = true;
 			break;
+		case 't':
+			parameters.CLOCK = true;
+			break;
 		case 'h':
 		default:
 			printUsage();
@@ -79,7 +85,8 @@ checkArgs::args_t checkArgs::getArgs()
 
 	if (parameters.SIZE <= 0 ||
 			(parameters.SIMD != true && parameters.SIMD != false) ||
-			(parameters.PRINT != true && parameters.PRINT != false))
+			(parameters.PRINT != true && parameters.PRINT != false) ||
+			(parameters.CLOCK != true && parameters.CLOCK != false))
 	{
 		printUsage();
 		exit(EXIT_FAILURE);

@@ -9,11 +9,12 @@ private:
     int32_t size;
     bool simd;
     bool print;
+    bool clock;
 
     std::vector<std::complex<double>> v;
 
 public:
-    Wave(int32_t _size, bool _simd, bool _print);
+    Wave(int32_t _size, bool _simd, bool _print, bool _clock);
     ~Wave();
 
     int32_t getSize();
@@ -22,34 +23,75 @@ public:
 private:
     void FFT(std::vector<std::complex<double>> &v);
     void FFT_SIMD(std::vector<std::complex<double>> &v);
+    void getElapsedTime(std::function<void()> fn);
     void printResults();
 };
 
-Wave::Wave(int32_t _size, bool _simd, bool _print)
+/**
+ * Constructor for the Wave class.
+ * @param _size The size of the wave vector.
+ * @param _simd Flag indicating whether to use SIMD instructions.
+ * @param _print Flag indicating whether to print the results.
+ * @param _clock Flag indicating whether to measure the elapsed time.
+ */
+Wave::Wave(int32_t _size, bool _simd, bool _print, bool _clock)
 {
     size = (int32_t)pow(2, _size);
     simd = _simd;
     print = _print;
+    clock = _clock;
 
     // Generate the initial wave vector with sequential numbers
     std::generate_n(std::back_inserter(v), size, [n = 0]() mutable
                     { return n++; });
 }
 
+/**
+ * Destructor for the Wave class.
+ */
 Wave::~Wave()
 {
     // Destructor
 }
 
+/**
+ * Get the size of the wave vector.
+ * @return The size of the wave vector.
+ */
 int32_t Wave::getSize()
 {
     return size;
 }
 
+/**
+ * Measure the elapsed time for the provided function and print the result.
+ * @param fn The function to be executed.
+ */
+void Wave::getElapsedTime(std::function<void()> fn)
+{
+    auto startTime = std::chrono::high_resolution_clock::now();
+
+    // Call the provided function
+    fn();
+
+    auto endTime = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
+
+    std::cout << "Elapsed time: " << duration.count() << " ms" << std::endl;
+}
+
+/**
+ * Performs the Fast Fourier Transform (FFT) on the wave vector.
+ * If clock is true, measures the elapsed time for the operation.
+ * If print is true, prints the results of the FFT.
+ */
 void Wave::performFFT()
 {
-    // Perform FFT based on the selected method
-    simd ? FFT_SIMD(v) : FFT(v);
+    if (clock)
+        getElapsedTime([this]()
+                       { simd ? FFT_SIMD(v) : FFT(v); });
+    else
+        simd ? FFT_SIMD(v) : FFT(v);
 
     if (print)
         printResults();
@@ -114,6 +156,7 @@ void Wave::FFT_SIMD(std::vector<std::complex<double>> &v)
     FFT(even);
     FFT(odd);
 
+    // SIMD operations using AVX instructions
     __m256d _even, _w, _add, _sub;
     double a = -2.0 * M_PI / n;
 
@@ -130,6 +173,7 @@ void Wave::FFT_SIMD(std::vector<std::complex<double>> &v)
         _add = _mm256_add_pd(_even, _w);
         _sub = _mm256_sub_pd(_even, _w);
 
+        // Copy the results back to the vector
         std::copy((double *)&_add, (double *)&_add + 4, reinterpret_cast<double *>(&v[k]));
         std::copy((double *)&_sub, (double *)&_sub + 4, reinterpret_cast<double *>(&v[k + n / 2]));
     }
@@ -137,6 +181,7 @@ void Wave::FFT_SIMD(std::vector<std::complex<double>> &v)
 
 /**
  * Print the results of the FFT.
+ * Prints the real and imaginary parts of each complex number in the wave vector.
  */
 void Wave::printResults()
 {
